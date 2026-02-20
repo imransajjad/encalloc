@@ -1,0 +1,19 @@
+
+build*
+.vscode*
+!.gitignore
+
+#files being edited
+*~
+
+# make and build files
+*.lst
+*.o
+*.so
+*.a
+*.exe
+*.eep
+*.lss
+*.map
+*.sym
+*CMakeCache.txt
