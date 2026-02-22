@@ -22,7 +22,7 @@ struct pool_obj_s {
 
 
 struct module_data_s {
-    const uint8_t *key;
+    uint32_t key;
     uint8_t *pool;
     size_t capacity;
 
@@ -35,16 +35,12 @@ static struct module_data_s m_data;
 // Common utility functions
 
 static uint32_t calc_hash(const struct pool_obj_s *obj) {
-    uint32_t hash = (uint64_t) (obj->boundary_start);
+    uint32_t hash = (uint32_t)(uintptr_t) (obj->boundary_start);
+    hash ^= obj->init_random;
+    hash ^= m_data.key;
 
-    uint32_t *key = (uint32_t*)m_data.key;
-    size_t key_words = ENCALLOC_KEY_SIZE/sizeof(uint32_t);
-
-    hash ^= obj->init_random + 1;
-
-    for (size_t i = 0; i < key_words; i++) {
-        hash ^= key[i] + 1;
-    }
+    hash *= 0x9e3779b1;   // golden ratio
+    hash ^= hash >> 16;
     return hash;
 }
 
@@ -116,7 +112,12 @@ static void print_header_info(const struct pool_obj_s *obj) {
 // Public functions
 
 void __encalloc_assign_init(const uint8_t *secure_key, void *pool, size_t pool_size) {
-    m_data.key = secure_key;
+    uint32_t *key = (uint32_t*)secure_key;
+
+    m_data.key = 0;
+    for (size_t i = 0 ; i < ENCALLOC_KEY_SIZE/sizeof(uint32_t); i++) {
+        m_data.key ^= key[i];
+    }
 
     if (NULL == pool) {
         // in this case, we will just use malloc once to get pool_size on the heap

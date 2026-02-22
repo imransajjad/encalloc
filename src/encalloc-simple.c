@@ -11,7 +11,7 @@
 #include <encalloc.h>
 
 
-static const uint8_t *m_key;
+static uint32_t m_key_mixed;
 
 struct enc_header_s {
     void *buf_start;
@@ -20,16 +20,13 @@ struct enc_header_s {
 };
 
 static uint32_t get_hash(const struct enc_header_s *header) {
-    uint32_t hash = (uint64_t) (header->buf_start);
+    uint32_t hash = (uint32_t)(uintptr_t) (header->buf_start);
 
-    uint32_t *key = (uint32_t*)m_key;
-    size_t key_words = ENCALLOC_KEY_SIZE/sizeof(uint32_t);
+    hash ^= m_key_mixed;
+    hash ^= header->init;
 
-    hash ^= header->init + 1;
-
-    for (size_t i = 0; i < key_words; i++) {
-        hash ^= key[i] + 1;
-    }
+    hash *= 0x9e3779b1;   // golden ratio
+    hash ^= hash >> 16;
     return hash;
 }
 
@@ -45,7 +42,12 @@ static void print_header_info(const struct enc_header_s *h) {
 // public functions
 
 void __encalloc_assign_init(const uint8_t *secure_key, void *pool, size_t pool_size) {
-    m_key = secure_key;
+    uint32_t *key = (uint32_t*)secure_key;
+
+    m_key_mixed = 0;
+    for (size_t i = 0 ; i < ENCALLOC_KEY_SIZE/sizeof(uint32_t); i++) {
+        m_key_mixed ^= key[i];
+    }
     (void)pool;
     (void)pool_size;
 }
